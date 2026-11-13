@@ -1,0 +1,6 @@
+telethon            # the Telegram library (needed to run the real bot, not needed for run_tests.py)
+cryptography        # encrypts saved logins (strongly recommended)
+pillow              # watermark on photos (optional)
+qrcode[pil]         # QR picture for "Login with link" (optional)
+pymongo[srv]        # optional cloud copy of the data in MongoDB Atlas
+dnspython           # needed by mongodb+srv:// links on some systems (Termux)

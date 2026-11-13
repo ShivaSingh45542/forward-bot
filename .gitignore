@@ -1,0 +1,10 @@
+# NEVER upload or share these: they hold bot tokens, login sessions and the key that unlocks them
+config.json
+data.json
+data.json.tmp
+secret.key
+*.session
+*.session-journal
+bot_session*
+tmp_media/
+__pycache__/
