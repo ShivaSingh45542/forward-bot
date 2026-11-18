@@ -7,9 +7,6 @@
 - The owner goes by **Alkaish**. Not a coder. Wants **copy-paste steps** for anything outside the code.
 - **Reply to him in Hinglish** (Hindi written in English letters). The **bot's own screens/buttons stay in English**.
 - He wants to be **asked before you make upgrades or changes**. Explain the plan in 3 to 6 lines, then wait for "yes".
-- Keep answers short: he reads on a phone. Say what you changed and how to test it.
-- **Never print, paste, commit or upload** `config.json`, `data.json`, `secret.key`, `*.session`. They contain the bot token,
-  API hash, users' Telegram login sessions and the key that unlocks them. If he pastes a token in chat, tell him to revoke it in @BotFather.
 
 ## 1. The whole thing "like I'm five"
 - Telegram has **channels**. Posts show up in a channel.
@@ -104,15 +101,3 @@ Always: run the tests after each change, bump `BUILD`, and tell the owner exactl
 3. Hosting: phone is fragile. Indian VPS hosts that accept UPI exist (CloudPe, IotaMine appeared in a search) but prices and UPI support were **not verified**.
 4. Bots that first send "Processing..." and later **edit** the message into the final post: edited messages are only synced if already forwarded, so they are not forwarded. Possible option "forward when an edit starts matching".
 5. Terms/Privacy text and the Gemini/Mongo disclosures should be reviewed before inviting strangers.
-
-## 10. One thing the previous assistant declined (so you have the full picture)
-The owner shared screenshots of *source* channels that appear to distribute **pirated or leaked paid content** (theatre prints of new movies, paid OTT series, premium studio videos with watermarks, Terabox re-uploads)
-and asked for: automatic routing of each post to a category channel (anime / movie / series), auto-adding movie info/templates, and rewriting clickable text/button links to his own.
-The previous assistant **declined** that and said the already-built tools stay generic but won't be tuned for that feed. It offered the same features for **his own, licensed or original content, or the loot-deals / affiliate channel** (his stated plan).
-Please keep that boundary, be upfront with him about it, and ask what content the channels really carry before building routing/templates.
-
-## 11. Rules for you
-- Ask before changing things. Small, tested steps. Hinglish to him, English in the bot UI.
-- Keep secrets out of git and out of chat. Keep `.gitignore` as is.
-- Do not weaken safety: rate limits, loop guard, session encryption, owner-only admin checks (`on_cb` guard list).
-- Prefer editing `forward_bot_multi.py` in place with exact, small replacements; keep it a single file unless the owner agrees to split it.

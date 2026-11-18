@@ -88,7 +88,7 @@ MAX_OLD_POSTS = None             # max old posts per "Old Posts" run
 MAX_QUEUE = None                 # max held messages per task (schedule)
 MAX_REUPLOAD_MB = None           # largest file re-uploaded from a protected channel
 REPORT_HOUR = 22                 # daily report is sent after this hour (local time, see UTC_OFFSET_MINUTES)
-BUILD = "2026-11-14 · Category routing + info template"      # shown in 👑 Admin so you can see which file is running
+BUILD = "2026-11-15 · Forward edited posts"      # shown in 👑 Admin so you can see which file is running
 POST_GAP = 1.5                   # seconds between old/queued posts (0 = none; very low risks FloodWait)
 CAPTION_LIMIT = 1024             # Telegram caption limit; longer text goes in a separate message
 TEXT_LIMIT = 4000                # Telegram text limit is 4096; longer text is split
@@ -161,6 +161,7 @@ TOGGLES = [
     ("silent", "Silent (no sound)"), ("pin", "Pin Posts"),
     ("ai_rewrite", "🤖 AI Rewrite"),
     ("tg_mentions", "Replace @usernames too"),
+    ("forward_edited", "Forward Edited Posts"),
 ]
 
 TYPES = ("text", "photo", "video", "gif", "file", "audio", "voice", "sticker", "poll")
@@ -285,6 +286,7 @@ def default_settings():
         "ai_rewrite": False, "ai_prompt": "",
         "tg_link": "", "tg_mentions": False, "link_map": [],
         "direction": "all",          # all | incoming (only messages from others/a bot) | outgoing (only my own)
+        "forward_edited": False,     # forward a post on its first edit even if it was never sent before
     }
 
 
@@ -1992,16 +1994,22 @@ def attach(uid, cl):
         for tid, t in tasks_for(uid, event.chat_id):
             s = eff_settings(uid, t)
             tmid = msgmap.get((tid, event.chat_id, msg.id))
-            if not s["sync_edit"] or not tmid:
-                continue
-            text = await process(msg.text, s)
-            if not text:
-                continue
-            try:
-                await cl.edit_message(t["target"], tmid, text, link_preview=False)
-                log(uid, tid, f"edit synced msg {msg.id}")
-            except Exception as e:
-                print(f"Edit sync failed: {e!r}")
+            if tmid:
+                if not s["sync_edit"]:
+                    continue
+                text = await process(msg.text, s)
+                if not text:
+                    continue
+                try:
+                    await cl.edit_message(t["target"], tmid, text, link_preview=False)
+                    log(uid, tid, f"edit synced msg {msg.id}")
+                except Exception as e:
+                    print(f"Edit sync failed: {e!r}")
+            elif s.get("forward_edited"):
+                text = await process(msg.text, s)
+                if text:
+                    await process_group(cl, uid, tid, t, [msg])
+                    log(uid, tid, f"forwarded edit {msg.id}")
 
     async def on_delete(event):
         if not event.chat_id:
@@ -2021,6 +2029,7 @@ def attach(uid, cl):
     cl.add_event_handler(on_album, events.Album())
     cl.add_event_handler(on_edit, events.MessageEdited())
     cl.add_event_handler(on_delete, events.MessageDeleted())
+    return on_new, on_album, on_edit, on_delete
 
 
 # ---------------- schedule queue worker ----------------
@@ -2508,7 +2517,8 @@ SECTIONS = {"st": "📥 Source & Target", "ft": "✂️ Filters", "tx": "✍️ 
             "sc": "⏰ Schedule & Delete", "op": "⚙️ Options"}
 TOGGLE_SECTION = {"dedupe": "ft", "media": "ft", "copy": "tx", "no_links": "tx", "unshorten": "tx",
                   "no_usernames": "tx", "tg_mentions": "tx", "ai_rewrite": "sm", "sync_edit": "op", "sync_delete": "op",
-                  "sync_reply": "op", "reupload": "op", "silent": "op", "pin": "op"}
+                  "sync_reply": "op", "reupload": "op", "silent": "op", "pin": "op",
+                  "forward_edited": "op"}
 FIELD_SECTION = {"source": "st", "target": "st", "extrasource": "st", "extratarget": "st",
                  "blacklist": "ft", "whitelist": "ft", "dealfilter": "ft", "types": "ft",
                  "header": "tx", "footer": "tx", "replace": "tx", "linkrules": "tx", "tglink": "tx", "linkmap": "tx",
@@ -2616,8 +2626,9 @@ def section_view(tid, key):
     else:  # op
         lines += [f"✏️ Sync edits: {onoff(s['sync_edit'])} • 🗑 Sync deletes: {onoff(s['sync_delete'])}",
                   f"↩️ Sync replies: {onoff(s['sync_reply'])} • 📤 Re-upload restricted: {onoff(s['reupload'])}",
-                  f"🔕 Silent: {onoff(s['silent'])} • 📌 Pin posts: {onoff(s['pin'])}"]
-        btns += toggles(["sync_edit", "sync_delete", "sync_reply", "reupload", "silent", "pin"])
+                  f"🔕 Silent: {onoff(s['silent'])} • 📌 Pin posts: {onoff(s['pin'])}",
+                  f"📝 Forward edited posts: {onoff(s.get('forward_edited'))}"]
+        btns += toggles(["sync_edit", "sync_delete", "sync_reply", "reupload", "silent", "pin", "forward_edited"])
     btns.append([Button.inline("◀️ Back to Task", f"t:{tid}".encode())])
     return "\n".join(lines), btns
 
@@ -3129,7 +3140,7 @@ def list_manager_view(tid, field, page=0, note=""):
     btns.append([Button.inline("➕ Add", f"ina:{base}".encode()), Button.inline("🔁 Replace all", f"inm:{base}".encode())])
     if items:
         btns.append([Button.inline("🗑 Clear all", f"lmc:{base}".encode())])
-    btns.append([Button.inline("◀️ Back", f"sec:{tid}:{FIELD_SECTION[field]}".encode())])
+    btns.append([Button.inline("◀️ Back", back_cb(tid, field))])
     return "\n".join(lines), btns
 
 
